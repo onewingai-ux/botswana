@@ -240,17 +240,36 @@ function render() {
   `;
 
   for (const a of Object.keys(EMOJIS)) {
-    const value = state.board[a] !== null ? state.board[a] : "-";
+    const stack: number[] = state.board[a] || []; // Full array of played cards
     const availableTokens = state.pool[a];
     
     // Tokens are only clickable IF it's my turn AND I have selected a card.
     const canTakeToken = isMyTurn && selectedCard !== null && availableTokens > 0;
     
     html += `
-      <div class="animal-stack">
+      <div class="animal-stack-container">
         <h4 class="animal-title">${a}</h4>
-        <div class="emoji-large">${EMOJIS[a]}</div>
-        <div class="stack-value">${value}</div>
+        
+        <div class="stack-visual-area">
+          ${stack.length === 0 ? `
+            <div class="empty-stack-placeholder">
+              <div class="emoji-faded">${EMOJIS[a]}</div>
+            </div>
+          ` : `
+            <div class="card-stack-visual">
+              ${stack.map((val, idx) => {
+                // Fan out the cards: each card gets pushed down slightly so you see a stack
+                const topOffset = idx * 12; // 12px shift down per card
+                return `
+                  <div class="played-card" style="top: ${topOffset}px; z-index: ${idx};">
+                    <div class="pc-emoji">${EMOJIS[a]}</div>
+                    <div class="pc-val">${val}</div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          `}
+        </div>
         
         <div class="token-pill ${canTakeToken ? 'token-clickable' : ''} ${availableTokens === 0 ? 'token-empty' : ''}" data-animal="${a}">
           <span class="token-icon">${EMOJIS[a]}</span>

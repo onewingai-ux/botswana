@@ -86,7 +86,9 @@ class GameState:
         self.pool[token_animal] -= 1
         self.player_tokens[player_id][token_animal] += 1
         
-        self.logs.append(f"{player_id} played {card_animal} {card_value} and took a {token_animal} token.")
+        # Friendly display name for logs
+        display_name = player_id.split('-')[0] if '-' in player_id else player_id
+        self.logs.append(f"{display_name} played {card_animal} {card_value} and took a {token_animal} token.")
 
         # Check for round end (6th card of any animal played)
         if len(self.board[card_animal]) == 6:
@@ -109,7 +111,9 @@ class GameState:
                 value = self.board[a][-1] if self.board[a] else 0
                 score += tokens * value
             self.scores[p] = score
-            self.logs.append(f"{p} scored {score} points.")
+            
+            display_name = p.split('-')[0] if '-' in p else p
+            self.logs.append(f"{display_name} scored {score} points.")
 
     def get_client_state(self, player_id: str) -> Dict[str, Any]:
         """Returns the state viewable by a specific player (hiding opponent hands)."""
@@ -127,7 +131,7 @@ class GameState:
             "room_id": self.room_id,
             "status": "playing" if self.is_playing else ("ended" if self.round_ended else "waiting"),
             "current_player": self.current_player(),
-            "board": {a: (self.board[a][-1] if self.board[a] else None) for a in ANIMALS},
+            "board": {a: self.board[a] for a in ANIMALS}, # NOW RETURNS FULL ARRAY OF STACKED CARDS
             "board_counts": {a: len(self.board[a]) for a in ANIMALS},
             "pool": self.pool,
             "my_id": player_id,
