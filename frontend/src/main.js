@@ -77,6 +77,8 @@ function renderLobbyJoin() {
       <h1>Botswana 🦁</h1>
       <p>A real-time multiplayer board game of Wild Safari strategy.</p>
       
+      <button id="how-to-play-btn" class="text-link-btn">📖 How to Play</button>
+
       <div class="name-entry-card">
         <h3>Choose your name</h3>
         <input id="name-input" type="text" placeholder="Enter your name" value="${playerName}" maxlength="15" />
@@ -97,7 +99,49 @@ function renderLobbyJoin() {
         </div>
       </div>
     </div>
+    
+    <div id="rules-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <span class="close-btn" id="close-modal">&times;</span>
+        <h2>How to Play Botswana 🌍</h2>
+        <div class="rules-text">
+          <p><strong>Goal:</strong> Collect animal tokens and manipulate their final values to score the most points.</p>
+          
+          <h3>On Your Turn (2 Steps):</h3>
+          <ol>
+            <li><strong>Play 1 Card:</strong> Choose any card from your hand to play onto the corresponding animal's stack in the center. The value on the card you play becomes the <em>current value</em> of that entire animal species.</li>
+            <li><strong>Take 1 Token:</strong> Take exactly one token of <em>any</em> available animal species. (Crucially, the token you take does <strong>not</strong> have to match the card you just played!)</li>
+          </ol>
+
+          <h3>Ending the Round:</h3>
+          <p>The round ends <strong>immediately</strong> the exact moment the 6th card of any single animal species is played. The game pauses, and the remaining cards in your hand are ignored.</p>
+
+          <h3>Scoring:</h3>
+          <p>At the end of the round, you reveal the tokens you collected. Each token is worth the value of the <strong>topmost card</strong> on that animal's stack.</p>
+          <ul>
+            <li><em>Example:</em> If the Zebra stack has a '4' on top when the round ends, every Zebra token you collected is worth 4 points!</li>
+            <li><em>Warning:</em> If an animal has a '0' on top, its tokens are entirely worthless! If no cards were played on an animal, its tokens are also worth 0.</li>
+          </ul>
+          
+          <h3>Multi-Round Game:</h3>
+          <p>A full game consists of as many rounds as there are players. Your scores carry over from round to round. The player with the highest total score at the end wins!</p>
+        </div>
+      </div>
+    </div>
   `;
+    // Rules Modal Handlers
+    document.getElementById('how-to-play-btn').onclick = () => {
+        document.getElementById('rules-modal').classList.remove('hidden');
+    };
+    document.getElementById('close-modal').onclick = () => {
+        document.getElementById('rules-modal').classList.add('hidden');
+    };
+    // Close on outside click
+    document.getElementById('rules-modal').onclick = (e) => {
+        if (e.target === document.getElementById('rules-modal')) {
+            document.getElementById('rules-modal').classList.add('hidden');
+        }
+    };
     const validateName = () => {
         const input = document.getElementById('name-input').value.trim();
         if (!input) {
@@ -141,7 +185,7 @@ function animateScoreboard() {
             el.style.opacity = "1";
             el.style.transform = "translateX(0)";
         }, delay);
-        delay += 200; // stagger effect
+        delay += 200;
     });
     setTimeout(() => {
         const totalElements = document.querySelectorAll('.animate-total');
@@ -153,7 +197,6 @@ function animateScoreboard() {
 }
 function renderScoreboard() {
     const bd = state.score_breakdown || {};
-    // Sort players by total score (descending)
     const sortedPlayers = [...state.players].sort((a, b) => {
         const scoreA = bd[a]?.total || 0;
         const scoreB = bd[b]?.total || 0;
@@ -226,7 +269,6 @@ function renderScoreboard() {
             ws.send(JSON.stringify({ type: "next_round" }));
         };
     }
-    // Trigger animation after render
     setTimeout(animateScoreboard, 100);
 }
 function render() {
@@ -286,7 +328,6 @@ function render() {
         }
         return;
     }
-    // Intercept game over / round ended screens
     if (state.status === "round_ended" || state.status === "game_over") {
         renderScoreboard();
         return;

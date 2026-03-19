@@ -240,3 +240,37 @@ input {
 }
 .score-global { font-size: 1.1em; color: var(--secondary-color); }
 .scoreboard-actions { margin-top: 30px; }
+
+/* Rules Modal */
+.text-link-btn {
+  background: none; color: var(--secondary-color); text-decoration: underline;
+  padding: 0; margin: 0 0 20px 0; width: auto; font-size: 1.1em; font-weight: normal;
+}
+.text-link-btn:hover { background: none; color: var(--primary-color); }
+
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.6); z-index: 1000;
+  display: flex; justify-content: center; align-items: center;
+  backdrop-filter: blur(3px);
+}
+.hidden { display: none !important; }
+
+.modal-content {
+  background: var(--card-bg); width: 90%; max-width: 600px;
+  border-radius: 12px; border: 2px solid var(--border-color);
+  padding: 30px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: left;
+}
+.close-btn {
+  position: absolute; top: 15px; right: 20px;
+  font-size: 2em; cursor: pointer; color: #888;
+  line-height: 1; transition: color 0.2s;
+}
+.close-btn:hover { color: var(--primary-color); }
+
+.rules-text h2 { margin-top: 0; color: var(--primary-color); border-bottom: 2px solid #eee; padding-bottom: 10px;}
+.rules-text h3 { color: var(--secondary-color); margin-top: 20px; margin-bottom: 10px; }
+.rules-text p, .rules-text li { line-height: 1.6; font-size: 1.05em; color: #444; }
+.rules-text ul, .rules-text ol { margin-top: 5px; padding-left: 20px; }
+.rules-text strong { color: var(--primary-color); }
