@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      # Optional: bind mount backend for local dev without rebuilding
+      - ./backend:/app:ro

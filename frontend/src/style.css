@@ -1,0 +1,101 @@
+:root {
+  --bg-color: #f4ecd8;
+  --text-color: #3e3322;
+  --card-bg: #fffcf5;
+  --border-color: #c9bca6;
+  --primary-color: #d88340;
+  --disabled: #b3aba0;
+}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+#app {
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+}
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  margin: 5px;
+  transition: 0.2s;
+}
+button:hover { background-color: #c46b28; }
+button:disabled { background-color: var(--disabled); cursor: not-allowed; }
+input {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 16px;
+  margin: 5px;
+}
+.board {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 30px 0;
+  flex-wrap: wrap;
+}
+.animal-stack {
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 15px;
+  min-width: 120px;
+}
+.animal-stack h3 { margin: 0 0 10px 0; }
+.card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 5px;
+  display: inline-block;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.card.selected {
+  border: 2px solid var(--primary-color);
+  background-color: #fff3e6;
+}
+.hand {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 10px;
+}
+.player-area, .opponents-area {
+  margin: 20px 0;
+  padding: 15px;
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+}
+.logs {
+  font-size: 14px;
+  color: #666;
+  text-align: left;
+  background: #eee;
+  padding: 10px;
+  border-radius: 5px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.emoji { font-size: 24px; }
