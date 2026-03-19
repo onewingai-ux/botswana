@@ -15,6 +15,7 @@ let state = null;
 let selectedCard = null;
 let isHost = false;
 let sortBy = "animal";
+let pingInterval;
 function getInviteLink(room) {
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
@@ -29,6 +30,12 @@ function connect() {
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
         console.log("Connected to Room:", roomId);
+        // Send a ping every 30 seconds to keep Render connection alive
+        pingInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "ping" }));
+            }
+        }, 30000);
     };
     ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
@@ -41,7 +48,8 @@ function connect() {
         }
     };
     ws.onclose = () => {
-        alert("Connection lost to server. Please refresh.");
+        clearInterval(pingInterval);
+        alert("Connection lost to server. Please refresh the page to reconnect.");
     };
 }
 function handlePlayToken(tokenAnimal) {
@@ -236,12 +244,18 @@ function render() {
           ` : `
             <div class="card-stack-visual">
               ${stack.map((val, idx) => {
-            // Fan out the cards: each card gets pushed down slightly so you see a stack
-            const topOffset = idx * 12; // 12px shift down per card
+            // Fan out the cards: vertical drop + horizontal shift so top corners are visible
+            // Make the most recently played card stand out more
+            const isTop = idx === stack.length - 1;
+            const topOffset = idx * 25;
+            const zIdx = idx;
             return `
-                  <div class="played-card" style="top: ${topOffset}px; z-index: ${idx};">
-                    <div class="pc-emoji">${EMOJIS[a]}</div>
-                    <div class="pc-val">${val}</div>
+                  <div class="played-card ${isTop ? 'top-card' : ''}" style="top: ${topOffset}px; z-index: ${zIdx};">
+                    <div class="pc-corner-val">${val}</div>
+                    <div class="pc-center">
+                      <div class="pc-emoji">${EMOJIS[a]}</div>
+                      ${isTop ? `<div class="pc-val">${val}</div>` : ''}
+                    </div>
                   </div>
                 `;
         }).join("")}

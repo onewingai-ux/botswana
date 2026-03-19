@@ -33,7 +33,10 @@ async def broadcast_state(room_id: str):
             # the state based on a custom attribute we stick on the websocket
             player_id = getattr(ws, "player_id", None)
             if player_id:
-                await ws.send_json({"type": "state", "data": state.get_client_state(player_id)})
+                try:
+                    await ws.send_json({"type": "state", "data": state.get_client_state(player_id)})
+                except:
+                    pass # Connection closed gracefully during broadcast loop
 
 async def handle_bot_turn(room_id: str):
     await asyncio.sleep(1.5) # Simulate thinking
@@ -85,7 +88,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             message = json.loads(data)
             msg_type = message.get("type")
             
-            if msg_type == "start":
+            if msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+            
+            elif msg_type == "start":
                 if state.start_game():
                     await broadcast_state(room_id)
                     if state.current_player().startswith("Bot"):
@@ -111,11 +117,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     except WebSocketDisconnect:
         if room_id in connections:
-            connections[room_id].remove(websocket)
+            if websocket in connections[room_id]:
+                connections[room_id].remove(websocket)
             if not connections[room_id]:
                 # Cleanup empty room
                 del rooms[room_id]
-                del connections[room_id]
 
 # Mount frontend static files for Render unified deployment
 dist_path = os.path.join(os.path.dirname(__file__), "dist")
