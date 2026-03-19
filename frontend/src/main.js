@@ -9,10 +9,12 @@ const EMOJIS = {
 };
 let ws;
 let roomId = "";
-let playerId = `Player_${Math.random().toString(36).substring(2, 6)}`;
+let playerName = localStorage.getItem("botswanaName") || "";
+let playerId = "";
 let state = null;
 let selectedCard = null;
-let isHost = false; // We'll assume the first person to create/join an empty room acts as host
+let isHost = false;
+let sortBy = "animal";
 function getInviteLink(room) {
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
@@ -21,6 +23,8 @@ function getInviteLink(room) {
 function connect() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
+    // Format ID to ensure uniqueness but keep name parseable: "Name-1A2B3C"
+    playerId = `${playerName}-${Math.random().toString(36).substring(2, 8)}`;
     const wsUrl = `${protocol}//${host}/ws/${roomId}/${playerId}`;
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
@@ -30,7 +34,6 @@ function connect() {
         const msg = JSON.parse(event.data);
         if (msg.type === "state") {
             state = msg.data;
-            // If we are the first player in the room, we are the host
             if (state.players.length > 0 && state.players[0] === playerId) {
                 isHost = true;
             }
@@ -56,69 +59,93 @@ function handlePlayToken(tokenAnimal) {
     }));
     selectedCard = null;
 }
-function render() {
-    if (!state) {
-        app.innerHTML = `
-      <div class="hero">
-        <h1>Botswana 🦁</h1>
-        <p>A real-time multiplayer board game of Wild Safari strategy.</p>
-        
-        <div class="lobby-actions">
-          <div class="action-card">
-            <h3>Start a New Game</h3>
-            <p>Create a room and invite your friends to play.</p>
-            <button id="create-btn" class="primary-btn">Create Game</button>
-          </div>
-          
-          <div class="action-separator">OR</div>
+// Helper to strip the "-1A2B3C" unique hash for UI display
+function displayName(id) {
+    if (id.startsWith("Bot "))
+        return id;
+    const parts = id.split("-");
+    return parts.slice(0, -1).join("-") || id;
+}
+function renderLobbyJoin() {
+    app.innerHTML = `
+    <div class="hero">
+      <h1>Botswana 🦁</h1>
+      <p>A real-time multiplayer board game of Wild Safari strategy.</p>
+      
+      <div class="name-entry-card">
+        <h3>Choose your name</h3>
+        <input id="name-input" type="text" placeholder="Enter your name" value="${playerName}" maxlength="15" />
+      </div>
 
-          <div class="action-card">
-            <h3>Join Existing Game</h3>
-            <p>Enter a room code you received from a friend.</p>
-            <input id="room-input" type="text" placeholder="e.g. A1B2C" maxlength="6" />
-            <button id="join-btn" class="secondary-btn">Join Game</button>
-          </div>
+      <div class="lobby-actions">
+        <div class="action-card">
+          <h3>Start a New Game</h3>
+          <button id="create-btn" class="primary-btn">Create Room</button>
+        </div>
+        
+        <div class="action-separator">OR</div>
+
+        <div class="action-card">
+          <h3>Join Existing Game</h3>
+          <input id="room-input" type="text" placeholder="Room Code (e.g. A1B2C)" maxlength="6" />
+          <button id="join-btn" class="secondary-btn">Join Room</button>
         </div>
       </div>
-    `;
-        document.getElementById('create-btn').onclick = () => {
-            roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-            // Update URL without refreshing so they can easily copy it later
+    </div>
+  `;
+    const validateName = () => {
+        const input = document.getElementById('name-input').value.trim();
+        if (!input) {
+            alert("Please enter a name first!");
+            return false;
+        }
+        playerName = input;
+        localStorage.setItem("botswanaName", playerName);
+        return true;
+    };
+    document.getElementById('create-btn').onclick = () => {
+        if (!validateName())
+            return;
+        roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
+        const url = new URL(window.location.href);
+        url.searchParams.set('room', roomId);
+        window.history.pushState({}, '', url);
+        connect();
+    };
+    document.getElementById('join-btn').onclick = () => {
+        if (!validateName())
+            return;
+        const input = document.getElementById('room-input').value.trim();
+        if (input) {
+            roomId = input.toUpperCase();
             const url = new URL(window.location.href);
             url.searchParams.set('room', roomId);
             window.history.pushState({}, '', url);
             connect();
-        };
-        document.getElementById('join-btn').onclick = () => {
-            const input = document.getElementById('room-input').value.trim();
-            if (input) {
-                roomId = input.toUpperCase();
-                const url = new URL(window.location.href);
-                url.searchParams.set('room', roomId);
-                window.history.pushState({}, '', url);
-                connect();
-            }
-            else {
-                alert("Please enter a valid room code.");
-            }
-        };
+        }
+        else {
+            alert("Please enter a valid room code.");
+        }
+    };
+}
+function render() {
+    if (!state) {
+        renderLobbyJoin();
         return;
     }
-    // Lobby (Waiting Room)
+    // Waiting Room
     if (state.status === "waiting") {
         const inviteLink = getInviteLink(state.room_id);
         app.innerHTML = `
       <div class="waiting-room">
         <h2>Game Lobby</h2>
-        <div class="room-code-display">
-          Room Code: <strong>${state.room_id}</strong>
-        </div>
+        <div class="room-code-display">Room Code: <strong>${state.room_id}</strong></div>
         
         <div class="invite-section">
           <p>Send this link to friends to invite them:</p>
           <div class="invite-link-box">
             <input type="text" readonly value="${inviteLink}" id="invite-link-input" />
-            <button id="copy-btn">Copy Link</button>
+            <button id="copy-btn">Copy</button>
           </div>
         </div>
 
@@ -128,7 +155,7 @@ function render() {
             ${state.players.map((p, idx) => `
               <li>
                 <span class="player-avatar">${idx === 0 ? '👑' : '👤'}</span> 
-                ${p} ${p === playerId ? '(You)' : ''}
+                ${displayName(p)} ${p === playerId ? '(You)' : ''}
               </li>
             `).join("")}
           </ul>
@@ -151,7 +178,7 @@ function render() {
             copyText.select();
             document.execCommand("copy");
             document.getElementById('copy-btn').innerText = "Copied!";
-            setTimeout(() => document.getElementById('copy-btn').innerText = "Copy Link", 2000);
+            setTimeout(() => document.getElementById('copy-btn').innerText = "Copy", 2000);
         };
         if (isHost) {
             document.getElementById('add-bot-btn').onclick = () => ws.send(JSON.stringify({ type: "add_bot" }));
@@ -160,25 +187,26 @@ function render() {
         return;
     }
     const isMyTurn = state.current_player === playerId && state.status === "playing";
-    // Game Board
+    // Hand Sorting Logic
+    let hand = [...state.my_hand];
+    if (sortBy === "animal") {
+        hand.sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]);
+    }
+    else {
+        hand.sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+    }
+    // Game Board UI
     let html = `
     <div class="game-header">
       <div class="room-badge">Room: ${state.room_id}</div>
       <div class="status-badge">${state.status === "playing" ? 'Game in Progress' : 'Round Ended'}</div>
     </div>
     
-    ${state.status === "playing" ? `
-      <div class="turn-indicator ${isMyTurn ? 'my-turn' : ''}">
-        ${isMyTurn ? "It's your turn!" : `Waiting for ${state.current_player}...`}
-      </div>
-    ` : ''}
-
     <div class="opponents-area">
-      <h4>Opponents</h4>
       <div class="opponents-grid">
         ${state.opponents.map((o) => `
           <div class="opponent-card ${state.current_player === o.id ? 'active-opponent' : ''}">
-            <div class="opponent-name">${o.id}</div>
+            <div class="opponent-name">${displayName(o.id)}</div>
             <div class="opponent-stats">Score: <strong>${o.score}</strong> | Cards: ${o.hand_count}</div>
             <div class="opponent-tokens">
               ${Object.keys(EMOJIS).map(a => `<span title="${a}">${EMOJIS[a]} ${o.tokens[a] || 0}</span>`).join(" ")}
@@ -188,50 +216,67 @@ function render() {
       </div>
     </div>
 
-    <div class="board">
+    <div class="board-area">
+      <div class="board">
   `;
     for (const a of Object.keys(EMOJIS)) {
         const value = state.board[a] !== null ? state.board[a] : "-";
         const availableTokens = state.pool[a];
+        // Tokens are only clickable IF it's my turn AND I have selected a card.
+        const canTakeToken = isMyTurn && selectedCard !== null && availableTokens > 0;
         html += `
       <div class="animal-stack">
-        <h3 class="${a.toLowerCase()}">${a}</h3>
+        <h4 class="animal-title">${a}</h4>
         <div class="emoji-large">${EMOJIS[a]}</div>
-        <div class="stack-value">Current Value: <strong>${value}</strong></div>
-        <div class="token-action">
-          <button class="token-btn" data-animal="${a}" ${!isMyTurn || availableTokens === 0 ? 'disabled' : ''}>
-            Take Token (${availableTokens} left)
-          </button>
+        <div class="stack-value">${value}</div>
+        
+        <div class="token-pill ${canTakeToken ? 'token-clickable' : ''} ${availableTokens === 0 ? 'token-empty' : ''}" data-animal="${a}">
+          <span class="token-icon">${EMOJIS[a]}</span>
+          <span class="token-count">${availableTokens} left</span>
         </div>
       </div>
     `;
     }
-    html += `</div>`;
-    // Player Area
+    html += `</div></div>`; // End board
+    // Player Area (Focus of Turn)
     html += `
     <div class="player-area ${isMyTurn ? 'active-player-area' : ''}">
-      <div class="player-header">
-        <h3>My Area (${playerId})</h3>
+      ${state.status === "playing" ? `
+        <div class="turn-instruction ${isMyTurn ? 'my-turn-instruction' : ''}">
+          ${isMyTurn
+        ? (selectedCard ? "Step 2: Select a token to take from the board above." : "Step 1: Select a card from your hand to play.")
+        : `Waiting for ${displayName(state.current_player)}...`}
+        </div>
+      ` : ''}
+      
+      <div class="player-top-row">
+        <div class="my-tokens-display">
+          <strong>Tokens:</strong>
+          <div class="tokens-list">
+            ${Object.keys(EMOJIS).map(a => `
+              <div class="token-item" title="${a}">
+                ${EMOJIS[a]} <span class="t-count">${state.my_tokens[a] || 0}</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
         <div class="my-score">Score: <strong>${state.my_score}</strong></div>
       </div>
       
-      <div class="my-tokens-display">
-        <strong>My Tokens:</strong>
-        <div class="tokens-list">
-          ${Object.keys(EMOJIS).map(a => `
-            <div class="token-item" title="${a}">
-              ${EMOJIS[a]} <span class="token-count">${state.my_tokens[a] || 0}</span>
-            </div>
-          `).join("")}
+      <div class="hand-header">
+        <h4>My Hand</h4>
+        <div class="sort-controls">
+          Sort by: 
+          <button id="sort-animal" class="sort-btn ${sortBy === 'animal' ? 'active-sort' : ''}">Animal</button>
+          <button id="sort-value" class="sort-btn ${sortBy === 'value' ? 'active-sort' : ''}">Value</button>
         </div>
       </div>
-      
-      <h4>My Hand ${!isMyTurn && state.status === "playing" ? '<small style="color:#666; font-weight:normal;">(Wait for your turn to play)</small>' : ''}</h4>
-      <div class="hand">
-        ${state.my_hand.map((card, i) => {
+
+      <div class="hand ${!isMyTurn ? 'hand-disabled' : ''}">
+        ${hand.map((card, i) => {
         const isSelected = selectedCard?.animal === card[0] && selectedCard?.value === card[1];
         return `
-            <div class="card ${isSelected ? 'selected' : ''} ${!isMyTurn ? 'disabled' : ''}" data-idx="${i}" data-a="${card[0]}" data-v="${card[1]}">
+            <div class="card ${isSelected ? 'selected' : ''}" data-idx="${i}" data-a="${card[0]}" data-v="${card[1]}">
               <div class="card-emoji">${EMOJIS[card[0]]}</div>
               <div class="card-value">${card[1]}</div>
             </div>
@@ -239,42 +284,59 @@ function render() {
     }).join("")}
       </div>
     </div>
-
-    <div class="game-logs">
-      <h4>Action Log</h4>
-      <div class="logs">
-        ${state.logs.slice().reverse().map((l, i) => `<div class="log-entry ${i === 0 ? 'latest-log' : ''}">${l}</div>`).join("")}
-      </div>
-    </div>
   `;
     app.innerHTML = html;
-    // Event Listeners
+    // Hand Sorting Event Listeners
+    if (document.getElementById('sort-animal')) {
+        document.getElementById('sort-animal').onclick = () => { sortBy = 'animal'; render(); };
+        document.getElementById('sort-value').onclick = () => { sortBy = 'value'; render(); };
+    }
+    // Card Selection Event Listener
     document.querySelectorAll('.card').forEach(el => {
         el.addEventListener('click', (e) => {
             if (!isMyTurn)
                 return;
             const target = e.currentTarget;
-            selectedCard = {
-                animal: target.getAttribute('data-a'),
-                value: parseInt(target.getAttribute('data-v'))
-            };
-            render(); // re-render to highlight selected
+            // If clicking the already selected card, deselect it
+            if (selectedCard?.animal === target.getAttribute('data-a') && selectedCard?.value === parseInt(target.getAttribute('data-v'))) {
+                selectedCard = null;
+            }
+            else {
+                selectedCard = {
+                    animal: target.getAttribute('data-a'),
+                    value: parseInt(target.getAttribute('data-v'))
+                };
+            }
+            render(); // Re-render to highlight selected card & activate tokens
         });
     });
-    document.querySelectorAll('.token-btn').forEach(el => {
+    // Token Selection Event Listener
+    document.querySelectorAll('.token-clickable').forEach(el => {
         el.addEventListener('click', (e) => {
             const animal = e.currentTarget.getAttribute('data-animal');
             handlePlayToken(animal);
         });
     });
 }
-// Auto-join if URL parameter exists
+// Auto-join handling via URL (Prompts for name if missing)
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
     if (roomParam) {
         roomId = roomParam.toUpperCase();
-        connect();
+        if (playerName) {
+            connect();
+        }
+        else {
+            // Must render lobby first to let them enter their name before auto-joining
+            renderLobbyJoin();
+            // Auto-fill the join box with the URL param
+            setTimeout(() => {
+                const joinInput = document.getElementById('room-input');
+                if (joinInput)
+                    joinInput.value = roomId;
+            }, 50);
+        }
     }
     else {
         render();
