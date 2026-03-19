@@ -16,6 +16,7 @@ let selectedCard = null;
 let isHost = false;
 let sortBy = "animal";
 let pingInterval;
+let logsExpanded = false; // Track log expansion state
 function getInviteLink(room) {
     const url = new URL(window.location.href);
     url.searchParams.set('room', room);
@@ -129,14 +130,12 @@ function renderLobbyJoin() {
       </div>
     </div>
   `;
-    // Rules Modal Handlers
     document.getElementById('how-to-play-btn').onclick = () => {
         document.getElementById('rules-modal').classList.remove('hidden');
     };
     document.getElementById('close-modal').onclick = () => {
         document.getElementById('rules-modal').classList.add('hidden');
     };
-    // Close on outside click
     document.getElementById('rules-modal').onclick = (e) => {
         if (e.target === document.getElementById('rules-modal')) {
             document.getElementById('rules-modal').classList.add('hidden');
@@ -449,11 +448,30 @@ function render() {
     }).join("")}
       </div>
     </div>
+    
+    <!-- Collapsible Game Logs -->
+    <div class="expandable-logs-container">
+      <button id="toggle-logs-btn" class="log-toggle">
+        ${logsExpanded ? 'Hide Action Log ▲' : 'View Action Log ▼'}
+      </button>
+      <div id="logs-content" class="game-logs ${logsExpanded ? '' : 'hidden'}">
+        <div class="logs">
+          ${state.logs.slice().reverse().map((l, i) => `<div class="log-entry ${i === 0 ? 'latest-log' : ''}">${l}</div>`).join("")}
+        </div>
+      </div>
+    </div>
   `;
     app.innerHTML = html;
     if (document.getElementById('sort-animal')) {
         document.getElementById('sort-animal').onclick = () => { sortBy = 'animal'; render(); };
         document.getElementById('sort-value').onclick = () => { sortBy = 'value'; render(); };
+    }
+    // Expandable logs toggle
+    if (document.getElementById('toggle-logs-btn')) {
+        document.getElementById('toggle-logs-btn').onclick = () => {
+            logsExpanded = !logsExpanded;
+            render(); // Fast enough to just re-render
+        };
     }
     document.querySelectorAll('.card').forEach(el => {
         el.addEventListener('click', (e) => {
