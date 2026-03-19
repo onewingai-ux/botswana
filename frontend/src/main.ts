@@ -14,12 +14,11 @@ let ws: WebSocket;
 let roomId = "";
 let playerId = `Player_${Math.random().toString(36).substring(2, 10)}`;
 let state: any = null;
-let selectedCard: { animal: string, value: int } | null = null;
+let selectedCard: { animal: string, value: number } | null = null;
 
 function connect() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.host;
-  // Dynamic host logic for Render (window.location.host) vs local dev
   const wsUrl = `${protocol}//${host}/ws/${roomId}/${playerId}`;
   
   ws = new WebSocket(wsUrl);
@@ -101,7 +100,6 @@ function render() {
 
   const isMyTurn = state.current_player === playerId && state.status === "playing";
   
-  // Game Board
   let html = `
     <h2>Room: ${state.room_id} | Status: ${state.status}</h2>
     ${state.status === "playing" ? `<h3>Turn: ${state.current_player}</h3>` : ''}
@@ -145,7 +143,6 @@ function render() {
   
   html += `</div>`;
 
-  // Player Area
   html += `
     <div class="player-area">
       <h3>My Area (${playerId}) - Score: ${state.my_score}</h3>
@@ -170,7 +167,6 @@ function render() {
 
   app.innerHTML = html;
 
-  // Event Listeners
   document.querySelectorAll('.card').forEach(el => {
     el.addEventListener('click', (e) => {
       if (!isMyTurn) return;
@@ -179,7 +175,7 @@ function render() {
         animal: target.getAttribute('data-a')!,
         value: parseInt(target.getAttribute('data-v')!)
       };
-      render(); // re-render to highlight selected
+      render();
     });
   });
 
@@ -191,5 +187,4 @@ function render() {
   });
 }
 
-// Initial render
 render();
