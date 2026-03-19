@@ -15,7 +15,7 @@ app = FastAPI()
 
 # In-memory store
 rooms: Dict[str, GameState] = {}
-connections: Dict[str, List[WebSocket]] = {} # room_id -> list of websockets
+connections: Dict[str, List[WebSocket]] = {} 
 
 class PlayRequest(BaseModel):
     card_animal: str
@@ -29,17 +29,15 @@ async def broadcast_state(room_id: str):
     if room_id in rooms and room_id in connections:
         state = rooms[room_id]
         for ws in connections[room_id]:
-            # In a real app we'd map ws to player_id, but here we just send
-            # the state based on a custom attribute we stick on the websocket
             player_id = getattr(ws, "player_id", None)
             if player_id:
                 try:
                     await ws.send_json({"type": "state", "data": state.get_client_state(player_id)})
                 except:
-                    pass # Connection closed gracefully during broadcast loop
+                    pass 
 
 async def handle_bot_turn(room_id: str):
-    await asyncio.sleep(1.5) # Simulate thinking
+    await asyncio.sleep(1.5) 
     state = rooms.get(room_id)
     if not state or not state.is_playing: return
 
@@ -58,7 +56,6 @@ async def handle_bot_turn(room_id: str):
     success = state.play_turn(current, card_animal, card_value, token_animal)
     if success:
         await broadcast_state(room_id)
-        # Check if next player is also a bot
         if state.is_playing and state.current_player().startswith("Bot"):
             asyncio.create_task(handle_bot_turn(room_id))
 
@@ -66,14 +63,12 @@ async def handle_bot_turn(room_id: str):
 async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str):
     await websocket.accept()
     
-    # Init room
     if room_id not in rooms:
         rooms[room_id] = GameState(room_id)
         connections[room_id] = []
         
     state = rooms[room_id]
     
-    # Store player on websocket for state building later
     websocket.player_id = player_id
     connections[room_id].append(websocket)
     
@@ -97,6 +92,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                     if state.current_player().startswith("Bot"):
                         asyncio.create_task(handle_bot_turn(room_id))
             
+            elif msg_type == "next_round":
+                if state.start_next_round():
+                    await broadcast_state(room_id)
+                    if state.current_player().startswith("Bot"):
+                        asyncio.create_task(handle_bot_turn(room_id))
+
             elif msg_type == "add_bot":
                 bot_id = f"Bot {sum(1 for p in state.players if p.startswith('Bot')) + 1}"
                 state.add_player(bot_id)
@@ -120,22 +121,20 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             if websocket in connections[room_id]:
                 connections[room_id].remove(websocket)
             if not connections[room_id]:
-                # Cleanup empty room
                 del rooms[room_id]
 
-# Mount frontend static files for Render unified deployment
+# Mount frontend
 dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(dist_path):
     app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
     
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # Serve index.html for all non-api routes (SPA fallback)
         try:
             with open(os.path.join(dist_path, "index.html"), "r") as f:
                 return HTMLResponse(content=f.read())
         except FileNotFoundError:
-            return HTMLResponse(content="<h1>Frontend build not found</h1><p>Run npm run build in frontend and move to backend/dist</p>", status_code=404)
+            return HTMLResponse(content="<h1>Frontend build not found</h1>", status_code=404)
 else:
     @app.get("/")
     async def root():

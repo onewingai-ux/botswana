@@ -24,13 +24,11 @@ function getInviteLink(room) {
 function connect() {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    // Format ID to ensure uniqueness but keep name parseable: "Name-1A2B3C"
     playerId = `${playerName}-${Math.random().toString(36).substring(2, 8)}`;
     const wsUrl = `${protocol}//${host}/ws/${roomId}/${playerId}`;
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
         console.log("Connected to Room:", roomId);
-        // Send a ping every 30 seconds to keep Render connection alive
         pingInterval = setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "ping" }));
@@ -67,7 +65,6 @@ function handlePlayToken(tokenAnimal) {
     }));
     selectedCard = null;
 }
-// Helper to strip the "-1A2B3C" unique hash for UI display
 function displayName(id) {
     if (id.startsWith("Bot "))
         return id;
@@ -136,12 +133,107 @@ function renderLobbyJoin() {
         }
     };
 }
+function animateScoreboard() {
+    const breakdownElements = document.querySelectorAll('.animate-row');
+    let delay = 0;
+    breakdownElements.forEach((el) => {
+        setTimeout(() => {
+            el.style.opacity = "1";
+            el.style.transform = "translateX(0)";
+        }, delay);
+        delay += 200; // stagger effect
+    });
+    setTimeout(() => {
+        const totalElements = document.querySelectorAll('.animate-total');
+        totalElements.forEach((el) => {
+            el.style.opacity = "1";
+            el.style.transform = "scale(1)";
+        });
+    }, delay + 500);
+}
+function renderScoreboard() {
+    const bd = state.score_breakdown || {};
+    // Sort players by total score (descending)
+    const sortedPlayers = [...state.players].sort((a, b) => {
+        const scoreA = bd[a]?.total || 0;
+        const scoreB = bd[b]?.total || 0;
+        return scoreB - scoreA;
+    });
+    let html = `
+    <div class="scoreboard-container">
+      <h2>${state.status === 'game_over' ? 'Final Game Results' : `Round ${state.current_round} Complete!`}</h2>
+      <p style="font-size:1.2em; color:var(--secondary-color);">Let's count the tokens...</p>
+      
+      <div class="score-cards">
+  `;
+    for (const p of sortedPlayers) {
+        const pData = bd[p] || { total: 0, animals: {} };
+        html += `
+        <div class="score-card ${p === playerId ? 'my-score-card' : ''}">
+          <h3 class="score-name">${displayName(p)}</h3>
+          <div class="score-breakdown-list">
+    `;
+        for (const a of Object.keys(EMOJIS)) {
+            const aData = pData.animals[a] || { tokens: 0, value: 0, pts: 0 };
+            if (aData.tokens > 0) {
+                html += `
+            <div class="breakdown-row animate-row">
+              <span class="bd-animal">${EMOJIS[a]} ${a}</span>
+              <span class="bd-math">${aData.tokens} x ${aData.value}</span>
+              <span class="bd-pts">+${aData.pts} pts</span>
+            </div>
+        `;
+            }
+        }
+        html += `
+          </div>
+          <div class="score-total-box animate-total">
+            <span>Round Score:</span>
+            <strong style="font-size:1.5em; color:var(--primary-color);">${pData.total}</strong>
+          </div>
+          <div class="score-global">
+            <small>Total Game Score: <strong>${state.my_id === p ? state.my_score : state.opponents.find((o) => o.id === p)?.score || 0}</strong></small>
+          </div>
+        </div>
+    `;
+    }
+    html += `
+      </div>
+      
+      <div class="scoreboard-actions">
+  `;
+    if (state.status === 'game_over') {
+        html += `
+      <h1 style="color:var(--primary-color); font-size:3em; margin:20px 0;">🏆 ${displayName(sortedPlayers[0])} Wins! 🏆</h1>
+      <button class="primary-btn" onclick="window.location.reload()">Play Again (New Room)</button>
+    `;
+    }
+    else {
+        if (isHost) {
+            html += `<button id="next-round-btn" class="primary-btn">Start Round ${state.current_round + 1} of ${state.max_rounds}</button>`;
+        }
+        else {
+            html += `<p style="font-style:italic; color:#666;">Waiting for Host to start the next round...</p>`;
+        }
+    }
+    html += `
+      </div>
+    </div>
+  `;
+    app.innerHTML = html;
+    if (isHost && document.getElementById('next-round-btn')) {
+        document.getElementById('next-round-btn').onclick = () => {
+            ws.send(JSON.stringify({ type: "next_round" }));
+        };
+    }
+    // Trigger animation after render
+    setTimeout(animateScoreboard, 100);
+}
 function render() {
     if (!state) {
         renderLobbyJoin();
         return;
     }
-    // Waiting Room
     if (state.status === "waiting") {
         const inviteLink = getInviteLink(state.room_id);
         app.innerHTML = `
@@ -194,8 +286,12 @@ function render() {
         }
         return;
     }
+    // Intercept game over / round ended screens
+    if (state.status === "round_ended" || state.status === "game_over") {
+        renderScoreboard();
+        return;
+    }
     const isMyTurn = state.current_player === playerId && state.status === "playing";
-    // Hand Sorting Logic
     let hand = [...state.my_hand];
     if (sortBy === "animal") {
         hand.sort((a, b) => a[0].localeCompare(b[0]) || a[1] - b[1]);
@@ -203,11 +299,10 @@ function render() {
     else {
         hand.sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
     }
-    // Game Board UI
     let html = `
     <div class="game-header">
       <div class="room-badge">Room: ${state.room_id}</div>
-      <div class="status-badge">${state.status === "playing" ? 'Game in Progress' : 'Round Ended'}</div>
+      <div class="status-badge">Round ${state.current_round} of ${state.max_rounds}</div>
     </div>
     
     <div class="opponents-area">
@@ -215,7 +310,7 @@ function render() {
         ${state.opponents.map((o) => `
           <div class="opponent-card ${state.current_player === o.id ? 'active-opponent' : ''}">
             <div class="opponent-name">${displayName(o.id)}</div>
-            <div class="opponent-stats">Score: <strong>${o.score}</strong> | Cards: ${o.hand_count}</div>
+            <div class="opponent-stats">Total Score: <strong>${o.score}</strong> | Cards: ${o.hand_count}</div>
             <div class="opponent-tokens">
               ${Object.keys(EMOJIS).map(a => `<span title="${a}">${EMOJIS[a]} ${o.tokens[a] || 0}</span>`).join(" ")}
             </div>
@@ -228,9 +323,8 @@ function render() {
       <div class="board">
   `;
     for (const a of Object.keys(EMOJIS)) {
-        const stack = state.board[a] || []; // Full array of played cards
+        const stack = state.board[a] || [];
         const availableTokens = state.pool[a];
-        // Tokens are only clickable IF it's my turn AND I have selected a card.
         const canTakeToken = isMyTurn && selectedCard !== null && availableTokens > 0;
         html += `
       <div class="animal-stack-container">
@@ -244,8 +338,6 @@ function render() {
           ` : `
             <div class="card-stack-visual">
               ${stack.map((val, idx) => {
-            // Fan out the cards: vertical drop + horizontal shift so top corners are visible
-            // Make the most recently played card stand out more
             const isTop = idx === stack.length - 1;
             const topOffset = idx * 25;
             const zIdx = idx;
@@ -270,8 +362,7 @@ function render() {
       </div>
     `;
     }
-    html += `</div></div>`; // End board
-    // Player Area (Focus of Turn)
+    html += `</div></div>`;
     html += `
     <div class="player-area ${isMyTurn ? 'active-player-area' : ''}">
       ${state.status === "playing" ? `
@@ -293,7 +384,7 @@ function render() {
             `).join("")}
           </div>
         </div>
-        <div class="my-score">Score: <strong>${state.my_score}</strong></div>
+        <div class="my-score">Game Score: <strong>${state.my_score}</strong></div>
       </div>
       
       <div class="hand-header">
@@ -319,18 +410,15 @@ function render() {
     </div>
   `;
     app.innerHTML = html;
-    // Hand Sorting Event Listeners
     if (document.getElementById('sort-animal')) {
         document.getElementById('sort-animal').onclick = () => { sortBy = 'animal'; render(); };
         document.getElementById('sort-value').onclick = () => { sortBy = 'value'; render(); };
     }
-    // Card Selection Event Listener
     document.querySelectorAll('.card').forEach(el => {
         el.addEventListener('click', (e) => {
             if (!isMyTurn)
                 return;
             const target = e.currentTarget;
-            // If clicking the already selected card, deselect it
             if (selectedCard?.animal === target.getAttribute('data-a') && selectedCard?.value === parseInt(target.getAttribute('data-v'))) {
                 selectedCard = null;
             }
@@ -340,10 +428,9 @@ function render() {
                     value: parseInt(target.getAttribute('data-v'))
                 };
             }
-            render(); // Re-render to highlight selected card & activate tokens
+            render();
         });
     });
-    // Token Selection Event Listener
     document.querySelectorAll('.token-clickable').forEach(el => {
         el.addEventListener('click', (e) => {
             const animal = e.currentTarget.getAttribute('data-animal');
@@ -351,7 +438,6 @@ function render() {
         });
     });
 }
-// Auto-join handling via URL (Prompts for name if missing)
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
@@ -361,9 +447,7 @@ window.onload = () => {
             connect();
         }
         else {
-            // Must render lobby first to let them enter their name before auto-joining
             renderLobbyJoin();
-            // Auto-fill the join box with the URL param
             setTimeout(() => {
                 const joinInput = document.getElementById('room-input');
                 if (joinInput)

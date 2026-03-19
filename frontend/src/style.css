@@ -210,3 +210,33 @@ input {
 }
 .card-emoji { font-size: 2em; margin-bottom: 5px; line-height: 1; }
 .card-value { font-size: 1.5em; font-weight: bold; color: var(--secondary-color); }
+
+/* Scoreboard */
+.scoreboard-container {
+  background: var(--card-bg); border-radius: 12px; padding: 40px; border: 1px solid var(--border-color);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 30px;
+}
+.score-cards {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin: 30px 0;
+}
+.score-card {
+  background: white; border: 2px solid #eee; border-radius: 12px; padding: 20px; width: 220px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.my-score-card { border-color: var(--primary-color); box-shadow: 0 0 15px rgba(216, 131, 64, 0.2); }
+.score-name { margin-top: 0; color: var(--secondary-color); font-size: 1.4em; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+.score-breakdown-list { margin: 15px 0; min-height: 120px; }
+.breakdown-row {
+  display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px dashed #eee;
+  opacity: 0; transform: translateX(-20px); transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.bd-animal { font-weight: bold; width: 80px; text-align: left; }
+.bd-math { color: #666; font-size: 0.9em; width: 50px; text-align: center;}
+.bd-pts { font-weight: bold; color: var(--primary-color); width: 60px; text-align: right; }
+.score-total-box {
+  background: #fdfdfd; padding: 10px; border-radius: 8px; border: 1px solid #ddd;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+  opacity: 0; transform: scale(0.9); transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.score-global { font-size: 1.1em; color: var(--secondary-color); }
+.scoreboard-actions { margin-top: 30px; }
