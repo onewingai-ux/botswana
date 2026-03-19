@@ -123,11 +123,24 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             if not connections[room_id]:
                 del rooms[room_id]
 
+# Dedicated explicit explicit healthcheck root route for Render
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 # Mount frontend
 dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(dist_path):
     app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
     
+    @app.get("/")
+    async def serve_root():
+        try:
+            with open(os.path.join(dist_path, "index.html"), "r") as f:
+                return HTMLResponse(content=f.read())
+        except FileNotFoundError:
+            return HTMLResponse(content="<h1>Frontend build not found</h1>", status_code=404)
+            
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         try:
