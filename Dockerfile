@@ -20,8 +20,6 @@ COPY backend/ .
 # Copy the built frontend static files from Stage 1
 COPY --from=frontend-builder /app/frontend/dist /app/dist
 
-# Expose the port Render expects
-EXPOSE 8000
-
-# Run the unified server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use the PORT environment variable provided by Render (defaults to 8000 if not set)
+# We don't use EXPOSE here anymore because Render overrides it automatically
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
